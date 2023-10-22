@@ -35,13 +35,14 @@ switch (res)
 
         server.AddPacketHandler(messagePacket, (data, ip, id) =>
         {
-            string message = Encoding.ASCII.GetString(data);
+            string message = new Packet(data).ReadString();
             Console.WriteLine($"[{id}]: {message}");
 
-            byte[] bytes = new byte[data.Length + 1];
-            bytes[0] = messagePacket;
-            Array.Copy(data, 0, bytes, 1, data.Length);
-            server.BroadcastBytes(bytes, ip);
+            Packet p = new Packet();
+            p.WriteByte(messagePacket);
+            p.WriteString(message);
+
+            server.BroadcastBytes(p.ToByteArray(), ip);
         });
 
         server.Start();
@@ -78,7 +79,7 @@ switch (res)
 
         client.AddPacketHandler(messagePacket, (data, ip, id) =>
         {
-            string message = Encoding.ASCII.GetString(data);
+            string message = (new Packet(data)).ReadString();
             Console.WriteLine($"[{id}]: {message}");
         });
 
@@ -94,12 +95,10 @@ switch (res)
                 break;
             }
 
-            byte[] bytes = new byte[message.Length + 1];
-            bytes[0] = messagePacket;
-            Array.Copy(Encoding.ASCII.GetBytes(message), 0, bytes, 1,
-                message.Length);
-
-            client.SendBytes(bytes);
+            Packet p = new Packet();
+            p.WriteByte(messagePacket);
+            p.WriteString(message);
+            client.SendBytes(p.ToByteArray());
         }
 
         break;
