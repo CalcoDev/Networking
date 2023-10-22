@@ -73,24 +73,6 @@ public abstract class Peer
         _udpClient.Send(data, SendEndPoint);
     }
 
-    public void SendInt(int data)
-    {
-        byte[] buffer = BitConverter.GetBytes(data);
-        _udpClient.Send(buffer, SendEndPoint);
-    }
-
-    public void SendFloat(float data)
-    {
-        byte[] buffer = BitConverter.GetBytes(data);
-        _udpClient.Send(buffer, SendEndPoint);
-    }
-
-    public void SendString(string data)
-    {
-        byte[] buffer = Encoding.ASCII.GetBytes(data);
-        _udpClient.Send(buffer, SendEndPoint);
-    }
-
     private void UdpClientReceiveCallback(IAsyncResult ar)
     {
         if (!Active)

@@ -18,7 +18,7 @@ public class Client : Peer
     {
         SetSendEndPoint(ip, port);
         Start();
-        SendInt((byte)CorePackets.Connect);
+        SendBytes(new []{(byte)CorePackets.Connect});
     }
 
     public void Disconnect()
