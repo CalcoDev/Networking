@@ -87,6 +87,24 @@ public abstract class Peer
             _udpClient.BeginReceive(UdpClientReceiveCallback, null);
     }
 
+    protected void TcpClientReceiveCallbackBase(IAsyncResult ar,
+        NetworkStream stream, IPEndPoint sender, byte[] buffer,
+        AsyncCallback f)
+    {
+        int bytesRead = stream.EndRead(ar);
+        if (bytesRead >= 0)
+        {
+            byte[] data = new byte[bytesRead];
+            Array.Copy(buffer, 0, data, 0, bytesRead);
+            OnDataReceivedCallback?.Invoke(data,
+                sender, MessageType.Tcp);
+        }
+
+        if (bytesRead <= 0 || buffer[0] != (byte)CorePackets.Disconnect)
+            stream.BeginRead(buffer, 0, 1024,
+                f, sender);
+    }
+
     protected abstract void HandleReceivedData(byte[] data, IPEndPoint sender,
         MessageType type);
 }

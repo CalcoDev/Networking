@@ -40,8 +40,7 @@ switch (res)
             p.WriteByte(messagePacket);
             p.WriteString(message);
 
-            // TODO(calco): Broadcast later via TCP lmao
-            // server.BroadcastBytes(p.ToByteArray(), ip);
+            server.BroadcastBytes(p.ToByteArray(), ip, MessageType.Tcp);
         });
 
         server.Start();

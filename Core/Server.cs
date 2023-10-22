@@ -39,15 +39,21 @@ public class Server : Peer
         _tcpListener.Stop();
     }
 
-    public void BroadcastBytes(byte[] data, IPEndPoint exclude)
+    public void BroadcastBytes(byte[] data, IPEndPoint exclude,
+        MessageType type)
     {
         foreach (var (ip, _) in _clientIds)
         {
             if (Equals(ip, exclude))
                 continue;
 
-            SetSendEndPoint(ip);
-            SendBytes(data);
+            if (type == MessageType.Udp)
+            {
+                SetSendEndPoint(ip);
+                SendBytes(data);
+            }
+            else
+                _tcpClients[ip].GetStream().Write(data);
         }
     }
 
@@ -131,20 +137,8 @@ public class Server : Peer
             return;
 
         IPEndPoint sender = (IPEndPoint)ar.AsyncState!;
-        NetworkStream networkStream = _tcpClients[sender].GetStream();
-
-        // TODO(calco): Define a fixed max size TCP size send.
-        int bytesRead = networkStream.EndRead(ar);
-        if (bytesRead >= 0)
-        {
-            byte[] data = new byte[bytesRead];
-            Array.Copy(_tcpDataBuffer, 0, data, 0, bytesRead);
-            OnDataReceivedCallback?.Invoke(data,
-                sender, MessageType.Tcp);
-        }
-
-        if (bytesRead <= 0 || _tcpDataBuffer[0] != (byte)CorePackets.Disconnect)
-            networkStream.BeginRead(_tcpDataBuffer, 0, 1024,
-                TcpClientReceiveCallback, sender);
+        TcpClientReceiveCallbackBase(ar, _tcpClients[sender].GetStream(),
+            sender, _tcpDataBuffer,
+            TcpClientReceiveCallback);
     }
 }

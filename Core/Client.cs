@@ -90,20 +90,7 @@ public class Client : Peer
             return;
 
         IPEndPoint sender = (IPEndPoint)_tcpClient.Client.RemoteEndPoint!;
-        NetworkStream networkStream = _tcpClient.GetStream();
-
-        // TODO(calco): Define a fixed max size TCP size send.
-        int bytesRead = networkStream.EndRead(ar);
-        if (bytesRead >= 0)
-        {
-            byte[] data = new byte[bytesRead];
-            Array.Copy(_tcpDataBuffer, 0, data, 0, bytesRead);
-            OnDataReceivedCallback?.Invoke(data,
-                sender, MessageType.Tcp);
-        }
-
-        if (bytesRead <= 0 || _tcpDataBuffer[0] != (byte)CorePackets.Disconnect)
-            networkStream.BeginRead(_tcpDataBuffer, 0, 1024,
-                TcpClientReceiveCallback, sender);
+        TcpClientReceiveCallbackBase(ar, _tcpClient.GetStream(), sender,
+            _tcpDataBuffer, TcpClientReceiveCallback);
     }
 }
