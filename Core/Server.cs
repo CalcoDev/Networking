@@ -28,10 +28,8 @@ public class Server : Peer
     {
         base.Start();
 
-        Console.WriteLine($"Tcp Listening on: {ReceiveEndPoint}.");
-
         _tcpListener.Start();
-        _tcpListener.BeginAcceptTcpClient(TcpClientReceiveCallback, null);
+        _tcpListener.BeginAcceptTcpClient(TcpClientConnectCallback, null);
     }
 
     public override void Close()
@@ -62,30 +60,47 @@ public class Server : Peer
         switch (data[0])
         {
             case (byte)CorePackets.Connect:
-                _clientIds.TryAdd(sender, _currentClientId);
-                OnClientConnectedCallback?.Invoke(sender, _currentClientId,
-                    type);
+            {
+                if (_clientIds.TryAdd(sender, _currentClientId))
+                    _currentClientId += 1;
 
-                SetSendEndPoint(sender);
+                int id = _clientIds[sender];
+                OnClientConnectedCallback?.Invoke(sender, id, type);
 
                 byte[] sendBuffer =
-                    { (byte)CorePackets.Connect, (byte)_currentClientId };
+                    { (byte)CorePackets.Connect, (byte)id };
                 if (type == MessageType.Udp)
+                {
+                    SetSendEndPoint(sender);
                     SendBytes(sendBuffer);
+                }
                 else
                     _tcpClients[sender].GetStream().Write(sendBuffer);
 
-                _currentClientId += 1;
                 break;
+            }
             case (byte)CorePackets.Disconnect:
+            {
                 OnClientDisconnectedCallback?.Invoke(sender, _clientIds[sender],
                     type);
 
-                _clientIds.Remove(sender);
+                // TODO(calco): Should remove, but check if both TCP and UDP.
+                // _clientIds.Remove(sender);
 
-                SetSendEndPoint(sender);
-                SendBytes(new []{(byte)CorePackets.Disconnect});
+                byte[] sendBuffer = { (byte)CorePackets.Disconnect };
+                if (type == MessageType.Udp)
+                {
+                    SetSendEndPoint(sender);
+                    SendBytes(sendBuffer);
+                }
+                else
+                {
+                    _tcpClients[sender].GetStream().Write(sendBuffer);
+                    // _tcpClients.Remove(sender);
+                }
+
                 break;
+            }
         }
 
         byte[] b = new byte[data.Length - 1];
@@ -95,28 +110,25 @@ public class Server : Peer
             f.Invoke(b, sender, _clientIds[sender]);
     }
 
-    private void TcpClientReceiveCallback(IAsyncResult ar)
+    private void TcpClientConnectCallback(IAsyncResult ar)
     {
-        Console.WriteLine($"Client connected TCP: {Active}");
-
         if (!Active)
             return;
 
         TcpClient tcpClient = _tcpListener.EndAcceptTcpClient(ar);
-        NetworkStream networkStream = tcpClient.GetStream();
 
         IPEndPoint sender = (IPEndPoint)tcpClient.Client.RemoteEndPoint!;
         _tcpClients.TryAdd(sender, tcpClient);
+        tcpClient.GetStream().BeginRead(_tcpDataBuffer, 0, 1024,
+            TcpClientReceiveCallback, sender);
 
-        networkStream.BeginRead(_tcpDataBuffer, 0, 1024,
-            TcpClientReceiveNetworkCallback, sender);
-
-        _tcpListener.BeginAcceptTcpClient(TcpClientReceiveCallback, null);
+        _tcpListener.BeginAcceptTcpClient(TcpClientConnectCallback, null);
     }
 
-    private void TcpClientReceiveNetworkCallback(IAsyncResult ar)
+    private void TcpClientReceiveCallback(IAsyncResult ar)
     {
-        Console.WriteLine($"Received TCP.");
+        if (!Active)
+            return;
 
         IPEndPoint sender = (IPEndPoint)ar.AsyncState!;
         NetworkStream networkStream = _tcpClients[sender].GetStream();
@@ -131,7 +143,8 @@ public class Server : Peer
                 sender, MessageType.Tcp);
         }
 
-        networkStream.BeginRead(_tcpDataBuffer, 0, 1024,
-            TcpClientReceiveNetworkCallback, sender);
+        if (bytesRead <= 0 || _tcpDataBuffer[0] != (byte)CorePackets.Disconnect)
+            networkStream.BeginRead(_tcpDataBuffer, 0, 1024,
+                TcpClientReceiveCallback, sender);
     }
 }

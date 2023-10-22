@@ -40,7 +40,8 @@ switch (res)
             p.WriteByte(messagePacket);
             p.WriteString(message);
 
-            server.BroadcastBytes(p.ToByteArray(), ip);
+            // TODO(calco): Broadcast later via TCP lmao
+            // server.BroadcastBytes(p.ToByteArray(), ip);
         });
 
         server.Start();
@@ -69,10 +70,14 @@ switch (res)
         {
             Console.WriteLine($"Connected via {type} to server with ID: {id}");
         };
+
+        int disconnectCount = 0;
         client.OnDisconnectedCallback = (_, type) =>
         {
             Console.WriteLine($"Disconnected via {type} from server.");
-            client.Close();
+            disconnectCount += 1;
+            if (disconnectCount >= 2)
+                client.Close();
         };
 
         client.AddPacketHandler(messagePacket, (data, ip, id) =>

@@ -25,7 +25,7 @@ public abstract class Peer
         ReceiveEndPoint = (IPEndPoint)_udpClient.Client.LocalEndPoint!;
 
         // TODO(calco): Figure out a better default.
-        // SendEndPoint = new IPEndPoint(IPAddress.Any, receivePort);
+        SendEndPoint = new IPEndPoint(IPAddress.Any, receivePort);
 
         OnStartedCallback = null;
         OnClosedCallback = null;

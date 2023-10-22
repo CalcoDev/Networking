@@ -32,9 +32,7 @@ public class Client : Peer
 
     public override void Start()
     {
-        // base.Start();
-
-        Console.WriteLine($"Connecting TCP to {SendEndPoint}.");
+        base.Start();
 
         _tcpClient.Connect(SendEndPoint);
         _tcpClient.GetStream().BeginRead(_tcpDataBuffer, 0, 1024,
@@ -46,7 +44,7 @@ public class Client : Peer
         SetSendEndPoint(ip, port);
         Start();
 
-        // SendBytes(new[] { (byte)CorePackets.Connect });
+        SendBytes(new[] { (byte)CorePackets.Connect });
         SendBytesTcp(new[] { (byte)CorePackets.Connect });
     }
 
@@ -59,7 +57,7 @@ public class Client : Peer
 
     public void Disconnect()
     {
-        // SendBytes(new[] { (byte)CorePackets.Disconnect });
+        SendBytes(new[] { (byte)CorePackets.Disconnect });
         SendBytesTcp(new[] { (byte)CorePackets.Disconnect });
     }
 
@@ -88,18 +86,14 @@ public class Client : Peer
 
     private void TcpClientReceiveCallback(IAsyncResult ar)
     {
-        Console.WriteLine($"Received TCP: active {Active}");
-        // if (!Active)
-        //     return;
+        if (!Active)
+            return;
 
         IPEndPoint sender = (IPEndPoint)_tcpClient.Client.RemoteEndPoint!;
+        NetworkStream networkStream = _tcpClient.GetStream();
 
         // TODO(calco): Define a fixed max size TCP size send.
-        int bytesRead = _tcpClient.GetStream().EndRead(ar);
-
-        Console.WriteLine(
-            $"Received {bytesRead} bytes: {string.Join(' ', _tcpDataBuffer)}");
-
+        int bytesRead = networkStream.EndRead(ar);
         if (bytesRead >= 0)
         {
             byte[] data = new byte[bytesRead];
@@ -108,7 +102,8 @@ public class Client : Peer
                 sender, MessageType.Tcp);
         }
 
-        _tcpClient.GetStream().BeginRead(_tcpDataBuffer, 0, 1024,
-            TcpClientReceiveCallback, null);
+        if (bytesRead <= 0 || _tcpDataBuffer[0] != (byte)CorePackets.Disconnect)
+            networkStream.BeginRead(_tcpDataBuffer, 0, 1024,
+                TcpClientReceiveCallback, sender);
     }
 }
