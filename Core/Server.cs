@@ -132,6 +132,6 @@ public class Server : Peer
         }
 
         networkStream.BeginRead(_tcpDataBuffer, 0, 1024,
-            TcpClientReceiveNetworkCallback, null);
+            TcpClientReceiveNetworkCallback, sender);
     }
 }

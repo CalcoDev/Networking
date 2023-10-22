@@ -96,6 +96,10 @@ public class Client : Peer
 
         // TODO(calco): Define a fixed max size TCP size send.
         int bytesRead = _tcpClient.GetStream().EndRead(ar);
+
+        Console.WriteLine(
+            $"Received {bytesRead} bytes: {string.Join(' ', _tcpDataBuffer)}");
+
         if (bytesRead >= 0)
         {
             byte[] data = new byte[bytesRead];
