@@ -15,17 +15,17 @@ public abstract class Peer
 
     public Action<int>? OnStartedCallback;
     public Action? OnClosedCallback;
-    public Action<byte[], IPEndPoint>? OnDataReceivedCallback;
+    public Action<byte[], IPEndPoint, MessageType>? OnDataReceivedCallback;
 
     protected readonly Dictionary<byte, Action<byte[], IPEndPoint, int>> PacketHandlers;
 
     public Peer(int receivePort)
     {
-        ReceiveEndPoint = new IPEndPoint(IPAddress.Any, receivePort);
-        _udpClient = new UdpClient(ReceiveEndPoint);
+        _udpClient = new UdpClient(new IPEndPoint(IPAddress.Any, receivePort));
+        ReceiveEndPoint = (IPEndPoint)_udpClient.Client.LocalEndPoint!;
 
         // TODO(calco): Figure out a better default.
-        SendEndPoint = new IPEndPoint(IPAddress.Any, receivePort);
+        // SendEndPoint = new IPEndPoint(IPAddress.Any, receivePort);
 
         OnStartedCallback = null;
         OnClosedCallback = null;
@@ -55,17 +55,17 @@ public abstract class Peer
     public virtual void Start()
     {
         Active = true;
-        _udpClient.BeginReceive(UdpClientReceiveCallback, null);
-
         OnStartedCallback?.Invoke(ReceiveEndPoint.Port);
+
+        _udpClient.BeginReceive(UdpClientReceiveCallback, null);
     }
 
     public virtual void Close()
     {
         Active = false;
-        _udpClient.Close();
-
         OnClosedCallback?.Invoke();
+
+        _udpClient.Close();
     }
 
     public void SendBytes(byte[] data)
@@ -81,11 +81,12 @@ public abstract class Peer
         IPEndPoint endPoint = null!;
         byte[] data = _udpClient.EndReceive(ar, ref endPoint!);
 
-        OnDataReceivedCallback?.Invoke(data, endPoint);
+        OnDataReceivedCallback?.Invoke(data, endPoint, MessageType.Udp);
 
         if (this is Server || data[0] != (byte)CorePackets.Disconnect)
             _udpClient.BeginReceive(UdpClientReceiveCallback, null);
     }
 
-    protected abstract void HandleReceivedData(byte[] data, IPEndPoint sender);
+    protected abstract void HandleReceivedData(byte[] data, IPEndPoint sender,
+        MessageType type);
 }

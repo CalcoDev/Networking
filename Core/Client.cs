@@ -1,43 +1,81 @@
 ﻿using System.Net;
+using System.Net.Sockets;
 
 namespace Core;
 
 public class Client : Peer
 {
-    public int Id;
+    public int Id { get; private set; } = -1;
+
     public bool Connected { get; private set; } = false;
 
-    public Action<int>? OnConnectedCallback;
-    public Action<int>? OnDisconnectedCallback;
+    public Action<int, MessageType>? OnConnectedCallback;
+    public Action<int, MessageType>? OnDisconnectedCallback;
+
+    private readonly TcpClient _tcpClient;
+    private readonly byte[] _tcpDataBuffer;
 
     public Client(int receivePort) : base(receivePort)
     {
+        IPAddress addr = IPAddress.Parse("127.0.0.1");
+        IPEndPoint tcpIp = new IPEndPoint(addr, ReceiveEndPoint.Port);
+        _tcpClient = new TcpClient(tcpIp);
+
+        _tcpDataBuffer = new byte[1024];
+    }
+
+    public void SendBytesTcp(byte[] data)
+    {
+        NetworkStream networkStream = _tcpClient.GetStream();
+        networkStream.Write(data);
+    }
+
+    public override void Start()
+    {
+        // base.Start();
+
+        Console.WriteLine($"Connecting TCP to {SendEndPoint}.");
+
+        _tcpClient.Connect(SendEndPoint);
+        _tcpClient.GetStream().BeginRead(_tcpDataBuffer, 0, 1024,
+            TcpClientReceiveCallback, null);
     }
 
     public void Connect(string ip, int port)
     {
         SetSendEndPoint(ip, port);
         Start();
-        SendBytes(new []{(byte)CorePackets.Connect});
+
+        // SendBytes(new[] { (byte)CorePackets.Connect });
+        SendBytesTcp(new[] { (byte)CorePackets.Connect });
+    }
+
+    public override void Close()
+    {
+        base.Close();
+
+        _tcpClient.Close();
     }
 
     public void Disconnect()
     {
-        SendBytes(new[]{(byte)CorePackets.Disconnect});
+        // SendBytes(new[] { (byte)CorePackets.Disconnect });
+        SendBytesTcp(new[] { (byte)CorePackets.Disconnect });
     }
 
-    protected override void HandleReceivedData(byte[] data, IPEndPoint sender)
+    protected override void HandleReceivedData(byte[] data, IPEndPoint sender,
+        MessageType type)
     {
         switch (data[0])
         {
             case (byte)CorePackets.Connect:
                 Id = data[1];
                 Connected = true;
-                OnConnectedCallback?.Invoke(Id);
+                OnConnectedCallback?.Invoke(Id, type);
                 break;
             case (byte)CorePackets.Disconnect:
                 Connected = false;
-                OnDisconnectedCallback?.Invoke(Id);
+                OnDisconnectedCallback?.Invoke(Id, type);
                 break;
         }
 
@@ -46,5 +84,27 @@ public class Client : Peer
 
         if (PacketHandlers.TryGetValue(data[0], out var f))
             f.Invoke(b, sender, Id);
+    }
+
+    private void TcpClientReceiveCallback(IAsyncResult ar)
+    {
+        Console.WriteLine($"Received TCP: active {Active}");
+        // if (!Active)
+        //     return;
+
+        IPEndPoint sender = (IPEndPoint)_tcpClient.Client.RemoteEndPoint!;
+
+        // TODO(calco): Define a fixed max size TCP size send.
+        int bytesRead = _tcpClient.GetStream().EndRead(ar);
+        if (bytesRead >= 0)
+        {
+            byte[] data = new byte[bytesRead];
+            Array.Copy(_tcpDataBuffer, 0, data, 0, bytesRead);
+            OnDataReceivedCallback?.Invoke(data,
+                sender, MessageType.Tcp);
+        }
+
+        _tcpClient.GetStream().BeginRead(_tcpDataBuffer, 0, 1024,
+            TcpClientReceiveCallback, null);
     }
 }

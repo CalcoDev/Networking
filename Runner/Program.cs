@@ -1,6 +1,4 @@
-﻿using System.Net;
-using System.Text;
-using Core;
+﻿using Core;
 
 Console.WriteLine("0 = SERVER | 1 = CLIENT");
 uint res = uint.Parse(Console.ReadLine() ?? "0");
@@ -24,13 +22,13 @@ switch (res)
             Console.WriteLine($"Stopped server.");
         };
 
-        server.OnClientConnectedCallback = (endPoint, id) =>
+        server.OnClientConnectedCallback = (endPoint, id, type) =>
         {
-            Console.WriteLine($"{endPoint} connected with id {id}.");
+            Console.WriteLine($"{endPoint} connected via {type} with id {id}.");
         };
-        server.OnClientDisconnectedCallback = (endPoint, id) =>
+        server.OnClientDisconnectedCallback = (endPoint, id, type) =>
         {
-            Console.WriteLine($"{endPoint} [{id}] disconnected.");
+            Console.WriteLine($"{endPoint} [{id}] disconnected via {type}.");
         };
 
         server.AddPacketHandler(messagePacket, (data, ip, id) =>
@@ -67,13 +65,13 @@ switch (res)
             Console.WriteLine($"Stopped client.");
         };
 
-        client.OnConnectedCallback = (id) =>
+        client.OnConnectedCallback = (id, type) =>
         {
-            Console.WriteLine($"Connected to server with ID: {id}");
+            Console.WriteLine($"Connected via {type} to server with ID: {id}");
         };
-        client.OnDisconnectedCallback = _ =>
+        client.OnDisconnectedCallback = (_, type) =>
         {
-            Console.WriteLine($"Disconnected from server.");
+            Console.WriteLine($"Disconnected via {type} from server.");
             client.Close();
         };
 
@@ -98,7 +96,8 @@ switch (res)
             Packet p = new Packet();
             p.WriteByte(messagePacket);
             p.WriteString(message);
-            client.SendBytes(p.ToByteArray());
+            // client.SendBytes(p.ToByteArray());
+            client.SendBytesTcp(p.ToByteArray());
         }
 
         break;
