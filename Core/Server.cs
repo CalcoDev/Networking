@@ -1,94 +1,58 @@
 ﻿using System.Net;
-using System.Net.Sockets;
-using System.Text;
 
 namespace Core;
 
-/*
- *
- *int clientId = 0;
-
-        UdpClient listener = new UdpClient(serverPort);
-        IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, serverPort);
-
-        // Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Raw,
-        //     ProtocolType.Udp);
-        // IPAddress ipAddress = IPAddress.Parse("127.0.0.1");
-
-        try
-        {
-            Console.WriteLine("Started SERVER.\nWaiting for receive message.");
-            while (true)
-            {
-                Console.WriteLine("Polling for input!");
-                byte[] bytes = listener.Receive(ref endPoint);
-                Console.WriteLine($"Received message from {endPoint}:");
-
-                Task receiveTask = listener.ReceiveAsync();
-
-                // IPEndPoint socketEndPoint = new IPEndPoint(ipAddress, endPoint.Port);
-
-                // if (bytes[0] == connectPacket)
-                // {
-                //     int id = clientId;
-                //     clientId += 1;
-                //     Console.WriteLine($"Client {endPoint} connected to server and assigned ID {id}");
-                //     byte[] buffer = { connectPacket, (byte)id };
-                //     socket.SendTo(buffer, socketEndPoint);
-                // }
-            }
-        }
-        catch (SocketException e)
-        {
-            Console.WriteLine(e);
-        }
-        finally
-        {
-            listener.Close();
-        }
- *
- */
-
-public class Server
+public class Server : Peer
 {
-    private readonly UdpClient _udpClient;
-    private readonly IPEndPoint _receiveEndPoint;
+    private readonly Dictionary<IPEndPoint, int> _clientIds;
+    private int _currentClientId = 0;
 
-    public bool Active { get; private set; } = false;
+    public Action<IPEndPoint, int>? OnClientConnectedCallback;
+    public Action<IPEndPoint, int>? OnClientDisconnectedCallback;
 
-    public Server(int port)
+    public Server(int receivePort) : base(receivePort)
     {
-        _receiveEndPoint = new IPEndPoint(IPAddress.Any, port);
-        _udpClient = new UdpClient(_receiveEndPoint);
+        _clientIds = new Dictionary<IPEndPoint, int>();
     }
 
-    public void Start()
+    public void BroadcastBytes(byte[] data, IPEndPoint exclude)
     {
-        Console.WriteLine(
-            $"Server began listening to messages on port: {_receiveEndPoint.Port}");
+        foreach (var (ip, _) in _clientIds)
+        {
+            if (Equals(ip, exclude))
+                continue;
 
-        Active = true;
-        _udpClient.BeginReceive(UdpClientReceiveCallback, null);
+            SetSendEndPoint(ip);
+            SendBytes(data);
+        }
     }
 
-    private void UdpClientReceiveCallback(IAsyncResult ar)
+    protected override void HandleReceivedData(byte[] data, IPEndPoint sender)
     {
-        if (!Active)
-            return;
+        switch (data[0])
+        {
+            case (byte)CorePackets.Connect:
+                _clientIds.Add(sender, _currentClientId);
+                OnClientConnectedCallback?.Invoke(sender, _currentClientId);
 
-        IPEndPoint? endPoint = null;
-        byte[] data = _udpClient.EndReceive(ar, ref endPoint);
+                SetSendEndPoint(sender);
+                SendBytes(new []{(byte)CorePackets.Connect, (byte)_currentClientId});
 
-        Console.WriteLine($"Received data:\n{Encoding.ASCII.GetString(data)}");
+                _currentClientId += 1;
+                break;
+            case (byte)CorePackets.Disconnect:
+                OnClientDisconnectedCallback?.Invoke(sender, _clientIds[sender]);
+                _clientIds.Remove(sender);
 
-        _udpClient.BeginReceive(UdpClientReceiveCallback, null);
-    }
+                SetSendEndPoint(sender);
+                SendBytes(new []{(byte)CorePackets.Disconnect});
+                break;
+        }
 
-    public void Close()
-    {
-        Console.WriteLine("Shutting off server!");
+        byte[] b = new byte[data.Length - 1];
+        Array.Copy(data, 1, b, 0, b.Length);
 
-        Active = false;
-        _udpClient.Close();
+        if (PacketHandlers.TryGetValue(data[0], out var f))
+            f.Invoke(b, sender, _clientIds[sender]);
     }
 }

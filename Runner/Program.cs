@@ -1,23 +1,51 @@
-﻿using Core;
+﻿using System.Net;
+using System.Text;
+using Core;
 
-Console.WriteLine("Hello, World!");
-
-Console.WriteLine("Please enter 0 for SERVER, 1 for CLIENT");
+Console.WriteLine("0 = SERVER | 1 = CLIENT");
 uint res = uint.Parse(Console.ReadLine() ?? "0");
 
 const int serverPort = 25565;
 
-const int connectPacket = 1;
-const int disconnectPacket = 2;
-const int messagePacket = 3;
+const int messagePacket = 2;
 
 switch (res)
 {
     case 0:
+        // TODO(calco): This shuold be IPendpoint to int
         Server server = new Server(serverPort);
+        server.OnStartedCallback = port =>
+        {
+            Console.WriteLine($"Started server on port {port}.");
+            Console.WriteLine("Awaiting messages...");
+        };
+        server.OnClosedCallback = () =>
+        {
+            Console.WriteLine($"Stopped server.");
+        };
+
+        server.OnClientConnectedCallback = (endPoint, id) =>
+        {
+            Console.WriteLine($"{endPoint} connected with id {id}.");
+        };
+        server.OnClientDisconnectedCallback = (endPoint, id) =>
+        {
+            Console.WriteLine($"{endPoint} [{id}] disconnected.");
+        };
+
+        server.AddPacketHandler(messagePacket, (data, ip, id) =>
+        {
+            string message = Encoding.ASCII.GetString(data);
+            Console.WriteLine($"[{id}]: {message}");
+
+            byte[] bytes = new byte[data.Length + 1];
+            bytes[0] = messagePacket;
+            Array.Copy(data, 0, bytes, 1, data.Length);
+            server.BroadcastBytes(bytes, ip);
+        });
+
         server.Start();
 
-        Console.WriteLine("Write stop to stop the server.");
         while (true)
         {
             string message = Console.ReadLine() ?? "";
@@ -28,18 +56,51 @@ switch (res)
 
         break;
     case 1:
-        Client client = new Client("127.0.0.1", serverPort);
-        client.Start();
+        Client client = new Client(0);
+        client.OnStartedCallback = (port) =>
+        {
+            Console.WriteLine($"Started client on port {port}.");
+        };
+        client.OnClosedCallback = () =>
+        {
+            Console.WriteLine($"Stopped client.");
+        };
+
+        client.OnConnectedCallback = (id) =>
+        {
+            Console.WriteLine($"Connected to server with ID: {id}");
+        };
+        client.OnDisconnectedCallback = _ =>
+        {
+            Console.WriteLine($"Disconnected from server.");
+            client.Close();
+        };
+
+        client.AddPacketHandler(messagePacket, (data, ip, id) =>
+        {
+            string message = Encoding.ASCII.GetString(data);
+            Console.WriteLine($"[{id}]: {message}");
+        });
+
+        client.Connect("127.0.0.1", serverPort);
 
         while (true)
         {
-            Console.WriteLine("Enter a message:");
+            Console.WriteLine($"ENTER MESSAGE: ...");
             string message = Console.ReadLine() ?? "";
-            if (message == "stop")
+            if (message == "disconnect")
+            {
+                client.Disconnect();
                 break;
-            client.Send(message);
+            }
+
+            byte[] bytes = new byte[message.Length + 1];
+            bytes[0] = messagePacket;
+            Array.Copy(Encoding.ASCII.GetBytes(message), 0, bytes, 1,
+                message.Length);
+
+            client.SendBytes(bytes);
         }
-        client.Close();
 
         break;
     default:
