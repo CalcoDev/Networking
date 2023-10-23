@@ -85,9 +85,11 @@ switch (res)
 
         client.Connect("127.0.0.1", serverPort);
 
-        while (true)
+        while (client.Connected)
         {
             Console.WriteLine($"ENTER MESSAGE: ...");
+
+            // the weird behaviour comes from this readline, not the client fail
             string message = Console.ReadLine() ?? "";
             if (message == "disconnect")
             {

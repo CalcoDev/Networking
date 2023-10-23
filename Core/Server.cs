@@ -8,6 +8,7 @@ public class Server : Peer
     public Action<IPEndPoint, int, MessageType>? OnClientConnectedCallback;
     public Action<IPEndPoint, int, MessageType>? OnClientDisconnectedCallback;
 
+    // TODO(calco): Split this into Tcp and Udp clients, although not major bug.
     private readonly Dictionary<IPEndPoint, int> _clientIds;
     private readonly Dictionary<IPEndPoint, TcpClient> _tcpClients;
 
@@ -34,6 +35,18 @@ public class Server : Peer
 
     public override void Close()
     {
+        // Disconnect all the clients, via TCP and UDP.
+        byte[] dataBuffer = { (byte)CorePackets.Disconnect };
+        foreach (var (_, client) in _tcpClients)
+        {
+            client.GetStream().Write(dataBuffer);
+        }
+
+        foreach (var (ip, _) in _clientIds)
+        {
+            SendBytes(dataBuffer, ip);
+        }
+
         base.Close();
 
         _tcpListener.Stop();

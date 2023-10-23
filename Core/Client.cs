@@ -7,6 +7,8 @@ public class Client : Peer
 {
     public int Id { get; private set; } = -1;
 
+
+    // TODO(calco): Split this into Tcp and Udp connected.
     public bool Connected { get; private set; } = false;
 
     public Action<int, MessageType>? OnConnectedCallback;
