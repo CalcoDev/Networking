@@ -68,9 +68,17 @@ public abstract class Peer
         _udpClient.Close();
     }
 
-    public void SendBytes(byte[] data)
+    public void SendBytes(byte[] data, IPEndPoint? endPoint = null)
     {
+        if (endPoint != null)
+            SetSendEndPoint(endPoint);
+
         _udpClient.Send(data, SendEndPoint);
+    }
+
+    public void SendBytesTcp(byte[] data, TcpClient client)
+    {
+        client.GetStream().Write(data);
     }
 
     private void UdpClientReceiveCallback(IAsyncResult ar)

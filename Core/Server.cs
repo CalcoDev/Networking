@@ -48,12 +48,9 @@ public class Server : Peer
                 continue;
 
             if (type == MessageType.Udp)
-            {
-                SetSendEndPoint(ip);
-                SendBytes(data);
-            }
+                SendBytes(data, ip);
             else
-                _tcpClients[ip].GetStream().Write(data);
+                SendBytesTcp(data, _tcpClients[ip]);
         }
     }
 
@@ -76,12 +73,9 @@ public class Server : Peer
                 byte[] sendBuffer =
                     { (byte)CorePackets.Connect, (byte)id };
                 if (type == MessageType.Udp)
-                {
-                    SetSendEndPoint(sender);
-                    SendBytes(sendBuffer);
-                }
+                    SendBytes(sendBuffer, sender);
                 else
-                    _tcpClients[sender].GetStream().Write(sendBuffer);
+                    SendBytesTcp(sendBuffer, _tcpClients[sender]);
 
                 break;
             }
@@ -95,13 +89,10 @@ public class Server : Peer
 
                 byte[] sendBuffer = { (byte)CorePackets.Disconnect };
                 if (type == MessageType.Udp)
-                {
-                    SetSendEndPoint(sender);
-                    SendBytes(sendBuffer);
-                }
+                    SendBytes(sendBuffer, sender);
                 else
                 {
-                    _tcpClients[sender].GetStream().Write(sendBuffer);
+                    SendBytesTcp(sendBuffer, _tcpClients[sender]);
                     // _tcpClients.Remove(sender);
                 }
 

@@ -4,13 +4,11 @@ Console.WriteLine("0 = SERVER | 1 = CLIENT");
 uint res = uint.Parse(Console.ReadLine() ?? "0");
 
 const int serverPort = 25565;
-
 const int messagePacket = 2;
 
 switch (res)
 {
     case 0:
-        // TODO(calco): This shuold be IPendpoint to int
         Server server = new Server(serverPort);
         server.OnStartedCallback = port =>
         {
@@ -100,8 +98,8 @@ switch (res)
             Packet p = new Packet();
             p.WriteByte(messagePacket);
             p.WriteString(message);
-            // client.SendBytes(p.ToByteArray());
-            client.SendBytesTcp(p.ToByteArray());
+            client.SendBytes(p.ToByteArray());
+            // client.SendBytesTcp(p.ToByteArray());
         }
 
         break;
