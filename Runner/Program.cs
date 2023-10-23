@@ -68,12 +68,10 @@ switch (res)
             Console.WriteLine($"Connected via {type} to server with ID: {id}");
         };
 
-        int disconnectCount = 0;
         client.OnDisconnectedCallback = (_, type) =>
         {
             Console.WriteLine($"Disconnected via {type} from server.");
-            disconnectCount += 1;
-            if (disconnectCount >= 2)
+            if (!client.Connected)
                 client.Close();
         };
 

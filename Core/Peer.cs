@@ -40,15 +40,9 @@ public abstract class Peer
         PacketHandlers.Add(packet, handler);
     }
 
-
-    public virtual void SetSendEndPoint(IPEndPoint ipEndPoint)
+    public void SetSendEndPoint(IPEndPoint ipEndPoint)
     {
         SendEndPoint = ipEndPoint;
-    }
-
-    public virtual void SetSendEndPoint(string ipAddress, int port)
-    {
-        SendEndPoint = new IPEndPoint(IPAddress.Parse(ipAddress), port);
     }
 
     public virtual void Start()

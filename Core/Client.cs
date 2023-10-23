@@ -9,6 +9,7 @@ public class Client : Peer
 
     public bool UdpConnected { get; private set; } = false;
     public bool TcpConnected { get; private set; } = false;
+    public bool Connected => UdpConnected && TcpConnected;
 
     public Action<int, MessageType>? OnConnectedCallback;
     public Action<int, MessageType>? OnDisconnectedCallback;
@@ -36,7 +37,7 @@ public class Client : Peer
 
     public void Connect(string ip, int port)
     {
-        SetSendEndPoint(ip, port);
+        SetSendEndPoint(new IPEndPoint(IPAddress.Parse(ip), port));
         Start();
 
         SendBytes(new[] { (byte)CorePackets.Connect });
