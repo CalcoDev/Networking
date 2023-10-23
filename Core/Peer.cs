@@ -1,6 +1,5 @@
 ﻿using System.Net;
 using System.Net.Sockets;
-using System.Text;
 
 namespace Core;
 
@@ -68,11 +67,14 @@ public abstract class Peer
         _udpClient.Close();
     }
 
-    public void SendBytes(byte[] data, IPEndPoint? endPoint = null)
+    public void SendBytes(byte[] data)
     {
-        if (endPoint != null)
-            SetSendEndPoint(endPoint);
+        _udpClient.Send(data, SendEndPoint);
+    }
 
+    public void SendBytes(byte[] data, IPEndPoint endPoint)
+    {
+        SetSendEndPoint(endPoint);
         _udpClient.Send(data, SendEndPoint);
     }
 

@@ -85,7 +85,7 @@ switch (res)
 
         client.Connect("127.0.0.1", serverPort);
 
-        while (client.Connected)
+        while (client.UdpConnected && client.TcpConnected)
         {
             Console.WriteLine($"ENTER MESSAGE: ...");
 

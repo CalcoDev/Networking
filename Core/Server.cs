@@ -38,14 +38,10 @@ public class Server : Peer
         // Disconnect all the clients, via TCP and UDP.
         byte[] dataBuffer = { (byte)CorePackets.Disconnect };
         foreach (var (_, client) in _tcpClients)
-        {
-            client.GetStream().Write(dataBuffer);
-        }
+            SendBytesTcp(dataBuffer, client);
 
         foreach (var (ip, _) in _clientIds)
-        {
             SendBytes(dataBuffer, ip);
-        }
 
         base.Close();
 

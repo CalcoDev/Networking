@@ -7,9 +7,8 @@ public class Client : Peer
 {
     public int Id { get; private set; } = -1;
 
-
-    // TODO(calco): Split this into Tcp and Udp connected.
-    public bool Connected { get; private set; } = false;
+    public bool UdpConnected { get; private set; } = false;
+    public bool TcpConnected { get; private set; } = false;
 
     public Action<int, MessageType>? OnConnectedCallback;
     public Action<int, MessageType>? OnDisconnectedCallback;
@@ -24,12 +23,6 @@ public class Client : Peer
         _tcpClient = new TcpClient(tcpIp);
 
         _tcpDataBuffer = new byte[1024];
-    }
-
-    public void SendBytesTcp(byte[] data)
-    {
-        NetworkStream networkStream = _tcpClient.GetStream();
-        networkStream.Write(data);
     }
 
     public override void Start()
@@ -63,6 +56,12 @@ public class Client : Peer
         SendBytesTcp(new[] { (byte)CorePackets.Disconnect });
     }
 
+    public void SendBytesTcp(byte[] data)
+    {
+        NetworkStream networkStream = _tcpClient.GetStream();
+        networkStream.Write(data);
+    }
+
     protected override void HandleReceivedData(byte[] data, IPEndPoint sender,
         MessageType type)
     {
@@ -70,11 +69,17 @@ public class Client : Peer
         {
             case (byte)CorePackets.Connect:
                 Id = data[1];
-                Connected = true;
+                if (type == MessageType.Udp)
+                    UdpConnected = true;
+                else
+                    TcpConnected = true;
                 OnConnectedCallback?.Invoke(Id, type);
                 break;
             case (byte)CorePackets.Disconnect:
-                Connected = false;
+                if (type == MessageType.Udp)
+                    UdpConnected = false;
+                else
+                    TcpConnected = false;
                 OnDisconnectedCallback?.Invoke(Id, type);
                 break;
         }
